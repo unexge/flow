@@ -28,6 +28,7 @@ const WidgetStack = @import("WidgetStack.zig");
 const ed = @import("editor.zig");
 const home = @import("home.zig");
 const LspInfo = @import("lsp_info.zig");
+const Fff = @import("fff");
 
 const logview = @import("logview.zig");
 const filelist_view = @import("filelist_view.zig");
@@ -62,6 +63,7 @@ panel_height: ?usize = null,
 panel_maximized: bool = false,
 symbols: std.ArrayListUnmanaged(u8) = .empty,
 symbols_complete: bool = true,
+fff: Fff,
 closing_project: bool = false,
 lsp_info: LspInfo,
 
@@ -89,6 +91,8 @@ pub fn create(allocator: std.mem.Allocator) CreateError!Widget {
         .panes_widget = undefined,
         .buffer_manager = Buffer.Manager.init(allocator),
         .lsp_info = .init(allocator),
+        // TODO: Handle error properly.
+        .fff = Fff.init(allocator) catch unreachable,
     };
     try self.commands.init(self);
     const w = Widget.to(self);
@@ -1497,11 +1501,17 @@ const cmds = struct {
         const logger = log.logger("find");
         defer logger.deinit();
         logger.print("finding files...", .{});
-        const find_f = ripgrep.find_in_files;
         if (std.mem.indexOfScalar(u8, query, '\n')) |_| return;
-        var rg = try find_f(self.allocator, query, "FIF");
-        defer rg.deinit();
-        self.find_in_files_state = .init;
+
+        self.clear_find_in_files_results(.find_in_files);
+
+        const result = try self.fff.search(query);
+        for (result.matches) |item| {
+            try self.add_find_in_files_result(.find_in_files, item.path, item.begin_line, item.begin_pos, item.end_line, item.end_pos, item.line_content, .Information);
+        }
+
+        logger.print("populated {d} results", .{result.count});
+        tui.need_render(@src());
     }
     pub const find_in_files_query_meta: Meta = .{ .arguments = &.{.string} };
 

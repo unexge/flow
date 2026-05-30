@@ -766,6 +766,18 @@ pub fn build_exe(
         },
     });
 
+    const fff_mod = b.createModule(.{
+        .root_source_file = b.path("src/fff.zig"),
+        .target = target,
+        .imports = &.{
+            .{ .name = "log", .module = log_mod },
+        },
+    });
+    fff_mod.addIncludePath(b.path("include/"));
+    fff_mod.addLibraryPath(b.path("lib/"));
+    fff_mod.addRPath(b.path("lib/"));
+    fff_mod.linkSystemLibrary("fff_c", .{});
+
     const location_history_mod = b.createModule(.{
         .root_source_file = b.path("src/location_history.zig"),
         .imports = &.{
@@ -836,6 +848,7 @@ pub fn build_exe(
             .{ .name = "keybind", .module = keybind_mod },
             .{ .name = "shell", .module = shell_mod },
             .{ .name = "ripgrep", .module = ripgrep_mod },
+            .{ .name = "fff", .module = fff_mod },
             .{ .name = "theme", .module = themes_dep.module("theme") },
             .{ .name = "themes", .module = themes_dep.module("themes") },
             .{ .name = "tracy", .module = tracy_mod },
